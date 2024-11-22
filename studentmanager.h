@@ -1,11 +1,13 @@
-#include "student.cpp"
+#include "student.h"
 #include <algorithm>
 #include <iostream>
 #include <sstream>
 #include <fstream>
 #include <cmath>
+#include <iomanip>
 using namespace std;
-
+#ifndef STUDENTMANAGER_H
+#define STUDENTMANAGER_H
 class StudentManager {
   // Dynamic array stuff, student pointer, number of students, etc.
   private:
@@ -46,21 +48,63 @@ class StudentManager {
 
     // Method to save the students, called in all methods that create a change
     void save() {
-      ofstream outFile(fileName);
-      // If it doesn't exist, send an error
-      if (!outFile) {
-        cerr << "Can't open file " << fileName << endl;
-        return;
+      try {
+        ofstream outFile(fileName);
+
+        // If it doesn't exist, throw an exception
+        if (!outFile) {
+          throw runtime_error("Cannot open file: " + fileName);
+        }
+
+        for (int i = 0; i < numberOfStudents; i++) {
+          outFile << students[i]->getFirstName() << " "
+                  << students[i]->getLastName() << " "
+                  << students[i]->getStudentNumber() << " "
+                  << students[i]->getMidtermGrade1() << " "
+                  << students[i]->getMidtermGrade2() << " "
+                  << students[i]->getFinalGrade() << endl;
+        }
+        outFile.close();
+      } catch (const exception& e) {
+        cerr << "Error during saving: " << e.what() << endl;
       }
-      for (int i = 0; i < numberOfStudents; i++) {
-        outFile << students[i]->getFirstName() << " "
-                << students[i]->getLastName() << " "
-                << students[i]->getStudentNumber() << " "
-                << students[i]->getMidtermGrade1() << " "
-                << students[i]->getMidtermGrade2() << " "
-                << students[i]->getFinalGrade() << endl;
+    }
+
+    // This loads from the dat file, which stores the data as plain text
+    void load() {
+      ifstream inFile;
+      try {
+        inFile.open(fileName);
+        if (!inFile.is_open()) {
+          throw runtime_error("File " + fileName + " cannot be opened or does not exist.");
+        }
+        deleteAllStudents();
+
+        string firstName, lastName;
+        int studentNumber;
+        double midtermGrade1, midtermGrade2, finalGrade;
+        string line;
+        while (getline(inFile, line)) {
+          istringstream iss(line);
+          if (!(iss >> firstName >> lastName >> studentNumber >> midtermGrade1 >> midtermGrade2 >> finalGrade)) {
+            cerr << "Error: Malformed data in line: " << line << endl;
+            continue;
+          }
+
+          if (!addStudent(firstName, lastName, studentNumber, midtermGrade1, midtermGrade2, finalGrade)) {
+            cerr << "Error: Duplicate student number " << studentNumber << " found in the file." << endl;
+          }
+        }
+
+      } catch (const exception& e) {
+        cerr << "Error while loading data: " << e.what() << endl;
+      } catch (...) {
+        cerr << "An unexpected error occurred during file loading." << endl;
       }
-      outFile.close();
+
+      if (inFile.is_open()) {
+        inFile.close();
+      }
     }
 
     // Add a student if one doesn't already exist by id.
@@ -131,7 +175,6 @@ class StudentManager {
       size = 5;
       delete[] students;
       students = new Student*[size];
-      save();
     }
 
     // Sort the students by name. The first if is for the last name, the else if is if the have the same last name, and so we sort by first name
@@ -175,8 +218,9 @@ class StudentManager {
 
       string result = "";
       for (int i = 0; i < numberOfStudents; i++) {
-        result += students[i]->toString() + "\nLetter grade: " + getLetterGrade(students[i]->getStudentNumber()) +
-          "\nPercent grade: " + to_string(getFinalGrade(students[i]->getStudentNumber())) + "\n\n";
+        std::ostringstream formattedGrade;
+        formattedGrade << std::fixed << std::setprecision(1) << getFinalGrade(students[i]->getStudentNumber());
+        result += students[i]->toString() + "\nLetter grade: " + getLetterGrade(students[i]->getStudentNumber()) + "\nPercent grade: " + formattedGrade.str() + "\n\n";
       }
       return result;
     }
@@ -207,13 +251,13 @@ class StudentManager {
     // Get the final grade with a students marks and the weights for each one
     double getFinalGrade(int studentNumber) {
       if (findStudentById(studentNumber) == nullptr) {
-        return 0;
+        return 0.0;
       }
-      // Doing this way instead of the way done in students since it's easier for this
       double total = (findStudentById(studentNumber)->getMidtermGrade1() * midtermGrade1Weight +
-              findStudentById(studentNumber)->getMidtermGrade2() * midtermGrade2Weight +
-              findStudentById(studentNumber)->getFinalGrade() * finalWeight) / 100;
-      return round(total*10) / 10.0;
+                      findStudentById(studentNumber)->getMidtermGrade2() * midtermGrade2Weight +
+                      findStudentById(studentNumber)->getFinalGrade() * finalWeight) / 100;
+      total = round(total * 10) / 10.0;
+      return total;
     }
 
     // Return a letter grade for a student, uses getFinalGrade to check against.
@@ -294,3 +338,4 @@ class StudentManager {
 double StudentManager::midtermGrade1Weight = 25.0;
 double StudentManager::midtermGrade2Weight = 25.0;
 double StudentManager::finalWeight = 50.0;
+#endif //STUDENT_H

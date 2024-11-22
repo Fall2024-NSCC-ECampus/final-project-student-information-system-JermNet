@@ -4,7 +4,8 @@
 #include <iomanip>
 #include <sstream>
 using namespace std;
-
+#ifndef STUDENT_H
+#define STUDENT_H
 class Student {
   private:
     string firstName, lastName;
@@ -100,3 +101,4 @@ class Student {
 
 };
 int Student::defaultStudentNumber = 0;
+#endif //STUDENT_H
